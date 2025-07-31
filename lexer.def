@@ -7,19 +7,22 @@
 #define LEXER_STRING_DELIMITERS "\""
 #define LEXER_ESCAPE_CHAR '\\'
 #define LEXER_ESCAPE_CHAR_LIST \
-    LEXER_ESC('a', '\a') \
-    LEXER_ESC('b', '\b') \
-    LEXER_ESC('e', '\e') \
-    LEXER_ESC('f', '\f') \
-    LEXER_ESC('n', '\n') \
-    LEXER_ESC('r', '\r') \
-    LEXER_ESC('t', '\t') \
-    LEXER_ESC('v', '\v') \
-    LEXER_ESC('\\', '\\') \
-    LEXER_ESC('\'', '\'') \
-    LEXER_ESC('\"', '\"') \
-    LEXER_ESC('\?', '\?') \
-
+    LEXER_ESC_FIXED(LEXER_CHAR_DELIMITER, LEXER_CHAR_DELIMITER) \
+    LEXER_ESC_FIXED(LEXER_ESCAPE_CHAR, LEXER_ESCAPE_CHAR) \
+    LEXER_ESC_FIXED('a', '\a') \
+    LEXER_ESC_FIXED('b', '\b') \
+    LEXER_ESC_FIXED('e', '\e') \
+    LEXER_ESC_FIXED('f', '\f') \
+    LEXER_ESC_FIXED('n', '\n') \
+    LEXER_ESC_FIXED('r', '\r') \
+    LEXER_ESC_FIXED('t', '\t') \
+    LEXER_ESC_FIXED('v', '\v') \
+    LEXER_ESC_FIXED('\"', '\"') \
+    LEXER_ESC_FIXED('\?', '\?') \
+    LEXER_ESC_VARIABLE('x', lexer_handle_hex_escape) \
+    LEXER_ESC_VARIABLE('u', lexer_handle_unicode_escape16) \
+    LEXER_ESC_VARIABLE('U', lexer_handle_unicode_escape32) \
+    LEXER_ESC_FALLBACK(lexer_handle_octal_escape) \
 
 // ---------------------------
 // INTEGER PREFIX AND SUFFIX
