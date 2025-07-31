@@ -1,6 +1,26 @@
 #pragma once
 
 // ---------------------------
+// STRING LITERAL DELIMITERS
+// ---------------------------
+#define LEXER_STRING_DELIMITERS "\""
+
+// ---------------------------
+// CHARACTER LITERALS
+// ---------------------------
+#define LEXER_CHAR_DELIMITERS "'"
+
+// ---------------------------
+// INTEGER PREFIX AND SUFFIX
+// ---------------------------
+#define LEXER_HEX_PREFIXES   "0x 0X"
+#define LEXER_HEX_SUFFIXES   "h" /* this is just temporary for testing purposes */
+#define LEXER_OCT_PREFIXES   "0"
+#define LEXER_OCT_SUFFIXES   ""
+#define LEXER_BIN_PREFIXES   "0b 0B"
+#define LEXER_BIN_SUFFIXES   ""
+
+// ---------------------------
 // OPERATORS
 // ---------------------------
 #define LEXER_OPERATOR_LIST \

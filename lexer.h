@@ -16,6 +16,21 @@ extern "C" {
 
 #include "lexer.def"
 
+    static size_t match_any( const char* str, const char* options ) {
+        const char* p = options;
+        while ( *p ) {
+            while ( *p == ' ' ) { p++; }
+            const char* start = p;
+
+            while ( *p && *p != ' ' ) { p++; }
+            size_t length = p - start;
+
+            if ( length > 0 && strncmp( str, start, length ) == 0 )
+                return length;
+        }
+        return 0;
+    }
+
     typedef enum {
         TOKEN_ERROR,
         TOKEN_OPERATOR,
@@ -244,13 +259,17 @@ extern "C" {
         lexer_add_token( lexer, &token );
     }
 
+    void lexer_advance( lexer_inner_t* lexer, size_t x ) {
+        lexer->cursor += x;
+        lexer->column += x;
+    }
+
     char lexer_next( lexer_inner_t* lexer ) {
         if ( lexer->cursor >= lexer->size ) {
             return '\0';
         }
 
-        lexer->cursor += 1;
-        lexer->column += 1;
+        lexer_advance( lexer, 1 );
         return lexer->source[lexer->cursor];
     }
 
@@ -363,34 +382,125 @@ extern "C" {
 
     bool lexer_parse_integer( lexer_t lexer ) {
         size_t start = lexer->cursor;
+        size_t column = lexer->column;
+        if ( !isdigit( lexer_current( lexer ) ) ) return false;
 
-        if ( !isdigit( lexer_current( lexer ) ) )
-            return false;
+        const char* str = lexer->source + start;
+        size_t hex_pre = match_any( str, LEXER_HEX_PREFIXES );
+        size_t oct_pre = match_any( str, LEXER_OCT_PREFIXES );
+        size_t bin_pre = match_any( str, LEXER_BIN_PREFIXES );
 
-        while ( isdigit( lexer_lookahead( lexer ) ) ) {
-            lexer_next( lexer );
-        }
-
-        size_t length = lexer->cursor - start + 1;
-
-        // NOTE(hamid): we don't need a buffer larger than 32 bytes long
-        //              32 bytes is enough for 64 bit integers
-        char buffer[32];
-        if ( length >= sizeof( buffer ) ) {
-            fprintf( stderr, "[FATAL]: integer literal too large at %zu:%zu\n", lexer->line, lexer->column );
+        int base = 10;
+        size_t prefix_len = 0;
+        if ( hex_pre > oct_pre && hex_pre > bin_pre ) {
+            base = 16;
+            prefix_len = hex_pre;
+        } else if ( oct_pre > hex_pre && oct_pre > bin_pre ) {
+            base = 8;
+            prefix_len = oct_pre;
+        } else if ( bin_pre > hex_pre && bin_pre > oct_pre ) {
+            base = 2;  prefix_len = bin_pre;
+        } else if ( ( hex_pre && ( hex_pre == oct_pre || hex_pre == bin_pre ) ) || ( oct_pre && ( oct_pre == bin_pre ) ) ) {
+            fprintf( stderr, "[FATAL]: integer literal prefix overlap at %zu:%zu\n", lexer->line, lexer->column );
             exit( EXIT_FAILURE );
         }
 
-        memcpy( buffer, lexer->source + start, length );
-        buffer[length] = '\0';
+        if ( !isalnum( lexer_lookahead( lexer ) ) ) {
+            token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
+            t.type = TOKEN_INTEGER;
+            t.i = strtoull( &lexer->source[lexer->cursor], NULL, 10 );
+            lexer_add_token( lexer, &t );
+            return true;
+        }
 
-        uint64_t value = strtoull( buffer, NULL, 10 );
+        lexer_advance( lexer, prefix_len );
 
-        token_t token = token_create_generic( lexer->line, lexer->column, start, start + length );
-        token.type = TOKEN_INTEGER;
-        token.i = value;
+        while ( 1 ) {
+            char la = lexer_lookahead( lexer );
+            bool valid = false;
 
-        lexer_add_token( lexer, &token );
+            if ( base == 16 ) {
+                valid = isxdigit( la );
+            } else if ( base == 10 ) {
+                valid = isdigit( la );
+            } else if ( base == 8 ) {
+                valid = ( la >= '0' && la <= '7' );
+            } else if ( base == 2 ) {
+                valid = ( la == '0' || la == '1' );
+            }
+
+            if ( !valid ) {
+                break;
+            }
+
+            lexer_next( lexer );
+        }
+
+        const char* suffix_str = lexer->source + lexer->cursor + 1;
+        size_t hex_suf = match_any( suffix_str, LEXER_HEX_SUFFIXES );
+        size_t oct_suf = match_any( suffix_str, LEXER_OCT_SUFFIXES );
+        size_t bin_suf = match_any( suffix_str, LEXER_BIN_SUFFIXES );
+
+        size_t suffix_len = 0;
+
+        if ( hex_suf > oct_suf && hex_suf > bin_suf ) {
+            if ( base != 16 && base != 10 ) {
+                fprintf( stderr, "[FATAL]: invalid hex suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
+                exit( EXIT_FAILURE );
+            }
+
+            base = 16;
+            suffix_len = hex_suf;
+
+        } else if ( oct_suf > hex_suf && oct_suf > bin_suf ) {
+            if ( base != 8 && base != 10 ) {
+                fprintf( stderr, "[FATAL]: invalid oct suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
+                exit( EXIT_FAILURE );
+            }
+
+            base = 8;
+            suffix_len = oct_suf;
+
+        } else if ( bin_suf > hex_suf && bin_suf > oct_suf ) {
+            if ( base != 2 && base != 10 ) {
+                fprintf( stderr, "[FATAL]: invalid bin suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
+                exit( EXIT_FAILURE );
+            }
+
+            base = 2;
+            suffix_len = bin_suf;
+
+        } else if (
+            ( hex_suf && ( hex_suf == oct_suf || hex_suf == bin_suf ) )
+            || ( oct_suf && ( oct_suf == bin_suf ) )
+            ) {
+            fprintf( stderr, "[FATAL]: integer literal suffix overlap at %zu:%zu\n", lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+
+        lexer_advance( lexer, suffix_len );
+
+        if ( isalnum( lexer_lookahead( lexer ) ) ) {
+            fprintf( stderr, "[FATAL]: unexpected token in integer literal at %zu:%zu\n",
+                lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+
+        size_t length = ( lexer->cursor - start + 1 ) - suffix_len;
+        if ( length - prefix_len >= 128 ) {
+            fprintf( stderr, "[FATAL]: integer literal too large at %zu:%zu\n",
+                lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+
+        char buffer[128];
+        memcpy( buffer, lexer->source + start + prefix_len, length - prefix_len );
+        buffer[length - prefix_len] = '\0';
+
+        token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
+        t.type = TOKEN_INTEGER;
+        t.i = strtoull( buffer, NULL, base );
+        lexer_add_token( lexer, &t );
         return true;
     }
 
