@@ -1,20 +1,31 @@
 #pragma once
 
 // ---------------------------
-// STRING LITERAL DELIMITERS
+// CHAR AND STRING LITERALS
 // ---------------------------
+#define LEXER_CHAR_DELIMITER '\''
 #define LEXER_STRING_DELIMITERS "\""
+#define LEXER_ESCAPE_CHAR '\\'
+#define LEXER_ESCAPE_CHAR_LIST \
+    LEXER_ESC('a', '\a') \
+    LEXER_ESC('b', '\b') \
+    LEXER_ESC('e', '\e') \
+    LEXER_ESC('f', '\f') \
+    LEXER_ESC('n', '\n') \
+    LEXER_ESC('r', '\r') \
+    LEXER_ESC('t', '\t') \
+    LEXER_ESC('v', '\v') \
+    LEXER_ESC('\\', '\\') \
+    LEXER_ESC('\'', '\'') \
+    LEXER_ESC('\"', '\"') \
+    LEXER_ESC('\?', '\?') \
 
-// ---------------------------
-// CHARACTER LITERALS
-// ---------------------------
-#define LEXER_CHAR_DELIMITERS "'"
 
 // ---------------------------
 // INTEGER PREFIX AND SUFFIX
 // ---------------------------
 #define LEXER_HEX_PREFIXES   "0x 0X"
-#define LEXER_HEX_SUFFIXES   "h" /* this is just temporary for testing purposes */
+#define LEXER_HEX_SUFFIXES   ""
 #define LEXER_OCT_PREFIXES   "0"
 #define LEXER_OCT_SUFFIXES   ""
 #define LEXER_BIN_PREFIXES   "0b 0B"

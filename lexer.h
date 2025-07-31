@@ -37,6 +37,7 @@ extern "C" {
         TOKEN_INTEGER,
         TOKEN_PUNCTUATION,
         TOKEN_KEYWORD,
+        TOKEN_CHARACTER,
     } token_type_t;
 
     typedef enum {
@@ -504,6 +505,47 @@ extern "C" {
         return true;
     }
 
+# define LEXER_ESC(c, value) case c: return value;
+    char lexer_unescape_character( lexer_t lexer, char esc ) {
+        switch ( esc ) {
+            LEXER_ESCAPE_CHAR_LIST
+        default:
+            fprintf( stderr, "[FATAL]: unknown escape sequence at %zu:%zu\n", lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+    }
+#undef LEXER_ESC
+
+    bool lexer_parse_character( lexer_t lexer ) {
+        size_t start = lexer->cursor;
+        size_t column = lexer->column;
+
+        if ( lexer_current( lexer ) != LEXER_CHAR_DELIMITER ) return false;
+        lexer_next( lexer );
+
+        char c = lexer_current( lexer );
+        if ( c == LEXER_ESCAPE_CHAR ) {
+            lexer_next( lexer );
+            c = lexer_unescape_character( lexer, c );
+        }
+
+        lexer_next( lexer );
+
+        if ( lexer_current( lexer ) != LEXER_CHAR_DELIMITER ) {
+            fprintf( stderr, "[FATAL]: unterminated char literal at %zu:%zu\n",
+                lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+        lexer_next( lexer );
+
+        token_t t = token_create_generic( lexer->line, column, start, lexer->cursor );
+        t.type = TOKEN_CHARACTER;
+        t.i = (uint64_t)c;
+        lexer_add_token( lexer, &t );
+
+        return true;
+    }
+
 
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
@@ -521,11 +563,11 @@ extern "C" {
             }
 
             // TODO(hamid): look into a trie data structure for these in the future
-            bool matched = lexer_parse_integer( lexer )
+            bool matched = lexer_parse_character( lexer )
+                || lexer_parse_integer( lexer )
                 || lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )
                 || lexer_parse_keyword( lexer );
-
 
             if ( !matched ) {
                 fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );
@@ -540,7 +582,7 @@ extern "C" {
 #undef LEXER_KEYWORD_LIST
 
 #ifdef __cplusplus
-}
+    }
 #endif // __cplusplus
 
 #endif // LEXER_H
