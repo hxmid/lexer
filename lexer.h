@@ -12,6 +12,7 @@ extern "C" {
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include "lexer.def"
 
@@ -360,6 +361,39 @@ extern "C" {
         return false;
     }
 
+    bool lexer_parse_integer( lexer_t lexer ) {
+        size_t start = lexer->cursor;
+
+        if ( !isdigit( lexer_current( lexer ) ) )
+            return false;
+
+        while ( isdigit( lexer_lookahead( lexer ) ) ) {
+            lexer_next( lexer );
+        }
+
+        size_t length = lexer->cursor - start + 1;
+
+        // NOTE(hamid): we don't need a buffer larger than 32 bytes long
+        //              32 bytes is enough for 64 bit integers
+        char buffer[32];
+        if ( length >= sizeof( buffer ) ) {
+            fprintf( stderr, "[FATAL]: integer literal too large at %zu:%zu\n", lexer->line, lexer->column );
+            exit( EXIT_FAILURE );
+        }
+
+        memcpy( buffer, lexer->source + start, length );
+        buffer[length] = '\0';
+
+        uint64_t value = strtoull( buffer, NULL, 10 );
+
+        token_t token = token_create_generic( lexer->line, lexer->column, start, start + length );
+        token.type = TOKEN_INTEGER;
+        token.i = value;
+
+        lexer_add_token( lexer, &token );
+        return true;
+    }
+
 
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
@@ -377,7 +411,8 @@ extern "C" {
             }
 
             // TODO(hamid): look into a trie data structure for these in the future
-            bool matched = lexer_parse_operator( lexer )
+            bool matched = lexer_parse_integer( lexer )
+                || lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )
                 || lexer_parse_keyword( lexer );
 

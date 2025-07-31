@@ -1,7 +1,7 @@
 #include "lexer.h"
 
 int main( void ) {
-    lexer_t lexer = lexer_create_from_string( "int return( void ) {\n    return;\n}\n" );
+    lexer_t lexer = lexer_create_from_string( "int return( void ) {\n    return 0;\n}\n" );
     lexer_parse( lexer );
 
     for ( size_t i = 0; i < lexer->token_list.length; i++ ) {
