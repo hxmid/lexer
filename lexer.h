@@ -270,10 +270,12 @@ extern "C" {
     }
 
     bool lexer_parse_operator( lexer_t lexer ) {
-        size_t max_len = 0;
-        for ( size_t i = 0; i < sizeof( operator_defs ) / sizeof( operator_defs[0] ); i++ ) {
-            if ( operator_defs[i].length > max_len )
-                max_len = operator_defs[i].length;
+        static size_t max_len = 0;
+        if ( max_len == 0 ) {
+            for ( size_t i = 0; i < sizeof( operator_defs ) / sizeof( operator_defs[0] ); i++ ) {
+                if ( operator_defs[i].length > max_len )
+                    max_len = operator_defs[i].length;
+            }
         }
 
         for ( size_t pass = max_len; pass > 0; pass-- ) {
@@ -298,10 +300,12 @@ extern "C" {
     }
 
     bool lexer_parse_punctuation( lexer_t lexer ) {
-        size_t max_len = 0;
-        for ( size_t i = 0; i < sizeof( punctuation_defs ) / sizeof( punctuation_defs[0] ); i++ ) {
-            if ( punctuation_defs[i].length > max_len )
-                max_len = punctuation_defs[i].length;
+        static size_t max_len = 0;
+        if ( max_len == 0 ) {
+            for ( size_t i = 0; i < sizeof( punctuation_defs ) / sizeof( punctuation_defs[0] ); i++ ) {
+                if ( punctuation_defs[i].length > max_len )
+                    max_len = punctuation_defs[i].length;
+            }
         }
 
         for ( size_t pass = max_len; pass > 0; pass-- ) {
@@ -327,10 +331,12 @@ extern "C" {
 
 
     bool lexer_parse_keyword( lexer_t lexer ) {
-        size_t max_len = 0;
-        for ( size_t i = 0; i < sizeof( keyword_defs ) / sizeof( keyword_defs[0] ); i++ ) {
-            if ( keyword_defs[i].length > max_len )
-                max_len = keyword_defs[i].length;
+        static size_t max_len = 0;
+        if ( max_len == 0 ) {
+            for ( size_t i = 0; i < sizeof( keyword_defs ) / sizeof( keyword_defs[0] ); i++ ) {
+                if ( keyword_defs[i].length > max_len )
+                    max_len = keyword_defs[i].length;
+            }
         }
 
         for ( size_t pass = max_len; pass > 0; pass-- ) {
@@ -370,6 +376,7 @@ extern "C" {
                 continue;
             }
 
+            // TODO(hamid): look into a trie data structure for these in the future
             bool matched = lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )
                 || lexer_parse_keyword( lexer );
