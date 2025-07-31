@@ -13,7 +13,7 @@ extern "C" {
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
-#include <assert.h>
+#include <inttypes.h>
 
 #include "lexer.def"
 
@@ -104,7 +104,7 @@ extern "C" {
     typedef struct {
         size_t length;
         size_t capacity;
-        uint64_t* str;
+        uint32_t* str;
     } string_literal_t;
 
     string_literal_t* string_literal_create( void ) {
@@ -115,7 +115,7 @@ extern "C" {
         }
         string->length = 0;
         string->capacity = 1;
-        string->str = (uint64_t*)calloc( string->capacity, sizeof( uint64_t ) );
+        string->str = (uint32_t*)calloc( string->capacity, sizeof( uint32_t ) );
         if ( !string->str ) {
             fprintf( stderr, "[FATAL]: could not allocate memory for `string_literal_t.str`\n" );
             exit( EXIT_FAILURE );
@@ -128,10 +128,10 @@ extern "C" {
         free( (void*)string );
     }
 
-    void string_literal_append( string_literal_t* string, uint64_t c ) {
+    void string_literal_append( string_literal_t* string, uint32_t c ) {
         if ( string->length == string->capacity ) {
             string->capacity <<= 1;
-            string->str = realloc( string->str, string->capacity * sizeof( uint64_t ) );
+            string->str = realloc( string->str, string->capacity * sizeof( uint32_t ) );
             if ( !string->str ) {
                 fprintf( stderr, "[FATAL]: could not reallocate memory for `string_literal_t.str`\n" );
                 exit( EXIT_FAILURE );
@@ -140,7 +140,7 @@ extern "C" {
 
         string->str[string->length] = c;
         string->length += 1;
-        string->str[string->length] = '\0';
+        string->str[string->length] = 0;
     }
 
     typedef struct {
@@ -682,19 +682,23 @@ extern "C" {
 
         for ( uint64_t c = lexer_current( lexer ); strncmp( lexer->source + lexer->cursor, str, delimiter_size ); c = lexer_next( lexer ) ) {
             if ( c == '\0' ) {
-                fprintf( stderr, "[FATAL]: Unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
+                fprintf( stderr, "[FATAL]: unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
                 exit( EXIT_FAILURE );
             }
 
         # if !LEXER_SUPPORT_MULTILINE_STRINGS
             else if ( c == '\n' ) {
-                fprintf( stderr, "[FATAL]: Unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
+                fprintf( stderr, "[FATAL]: unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
                 exit( EXIT_FAILURE );
             }
         # endif // !LEXER_SUPPORT_MULTILINE_STRINGS
 
             else if ( c == LEXER_ESCAPE_CHAR ) {
                 c = lexer_unescape_character( lexer );
+                if ( c > UINT32_MAX ) {
+                    fprintf( stderr, "[FATAL]: codepoint `%" PRIu64 "` at %zu:%zu in string literal starting at %zu:%zu exceeds maximum allowed size for string literals\n", c, lexer->line, lexer->column, line, column );
+                    exit( EXIT_FAILURE );
+                }
             }
 
             string_literal_append( string, c );

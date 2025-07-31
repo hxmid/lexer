@@ -5,7 +5,7 @@
 int main( void ) {
     lexer_t lexer = lexer_create_from_string(
         "int ( void ) {\n"
-        "    \"hi\"$$no \"ok\"$$\"short\";"
+        "    \"hi\";"
         "    return '\\0';\n"
         "}"
     );

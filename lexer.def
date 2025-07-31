@@ -4,7 +4,7 @@
 // CHAR AND STRING LITERALS
 // ---------------------------
 #define LEXER_SUPPORT_MULTILINE_STRINGS 0
-#define LEXER_STRING_DELIMITERS "\" $$" /* temporary while i test stuff out */
+#define LEXER_STRING_DELIMITERS "\""
 #define LEXER_CHAR_DELIMITER '\''
 #define LEXER_ESCAPE_CHAR '\\'
 #define LEXER_ESCAPE_CHAR_LIST \
