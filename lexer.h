@@ -42,6 +42,7 @@ extern "C" {
         TOKEN_STRING,
         TOKEN_FLOAT,
         TOKEN_DOUBLE,
+        TOKEN_IDENTIFIER,
     } token_type_t;
 
     typedef enum {
@@ -131,7 +132,7 @@ extern "C" {
     }
 
     void string_literal_append( string_literal_t* string, uint32_t c ) {
-        if ( string->length == string->capacity ) {
+        if ( string->length + 1 == string->capacity ) {
             string->capacity <<= 1;
             string->str = realloc( string->str, string->capacity * sizeof( uint32_t ) );
             if ( !string->str ) {
@@ -226,8 +227,12 @@ extern "C" {
 
     void token_list_deinit( token_list_t* token_list ) {
         for ( size_t i = 0; i < token_list->length; i++ ) {
-            if ( token_list->tokens[i].type == TOKEN_STRING ) {
+            switch ( token_list->tokens[i].type ) {
+            case TOKEN_STRING:
+            case TOKEN_IDENTIFIER:
                 string_literal_free( (void*)token_list->tokens[i].string );
+            default:
+                break;
             }
         }
         free( (void*)token_list->tokens );
@@ -758,6 +763,37 @@ extern "C" {
         return true;
     }
 
+    bool lexer_parse_identifier( lexer_t lexer ) {
+        size_t start = lexer->cursor;
+        size_t column = lexer->column;
+
+        string_literal_t* string = string_literal_create();
+
+        char c = lexer_current( lexer );
+        if ( !isalpha( c ) && c != '_' ) {
+            return false;
+        }
+        string_literal_append( string, lexer_current( lexer ) );
+
+        while ( 1 ) {
+            char la = lexer_peek( lexer );
+            if ( !isalnum( la ) && la != '_' ) {
+                break;
+            }
+            string_literal_append( string, lexer_next( lexer ) );
+        }
+
+        size_t length = lexer->cursor - start + 1;
+
+        token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
+
+        t.type = TOKEN_IDENTIFIER;
+        t.string = string;
+
+        lexer_add_token( lexer, &t );
+        return true;
+    }
+
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
             if ( c == '\n' ) {
@@ -779,7 +815,8 @@ extern "C" {
                 || lexer_parse_number( lexer )
                 || lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )
-                || lexer_parse_keyword( lexer );
+                || lexer_parse_keyword( lexer )
+                || lexer_parse_identifier( lexer );
 
             if ( !matched ) {
                 fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );

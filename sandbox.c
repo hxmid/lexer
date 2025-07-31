@@ -1,15 +1,11 @@
 #include "lexer.h"
 
-
-
-
-// "int ( void ) {\n"
-// "    \"hi\";"
-// "    return '\\0';\n"
-// "}"
 int main( void ) {
     lexer_t lexer = lexer_create_from_string(
-        "0x1 + 1 / 1.0f * 123.123123123123123 - 01 1.f 0"
+        "int main( void ) {\n"
+        "    printf( \"Hello, World!\" );"
+        "    return 0;\n"
+        "}"
     );
     lexer_parse( lexer );
 
@@ -41,6 +37,9 @@ int main( void ) {
             break;
         case TOKEN_FLOAT:
             printf( "f: %3.2f, ", t->f );
+            break;
+        case TOKEN_IDENTIFIER:
+            printf( "x: %5s, ", t->string->str );
             break;
         }
         printf( "str: " );
