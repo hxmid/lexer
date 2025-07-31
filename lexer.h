@@ -40,6 +40,8 @@ extern "C" {
         TOKEN_KEYWORD,
         TOKEN_CHARACTER,
         TOKEN_STRING,
+        TOKEN_FLOAT,
+        TOKEN_DOUBLE,
     } token_type_t;
 
     typedef enum {
@@ -157,6 +159,8 @@ extern "C" {
             keyword_type_t keyword;
             uint64_t i;
             string_literal_t* string;
+            double d;
+            float f;
         };
     } token_t;
 
@@ -429,8 +433,7 @@ extern "C" {
 
         return false;
     }
-
-    bool lexer_parse_integer( lexer_t lexer ) {
+    bool lexer_parse_number( lexer_t lexer ) {
         size_t start = lexer->cursor;
         size_t column = lexer->column;
         if ( !isdigit( lexer_current( lexer ) ) ) return false;
@@ -442,6 +445,8 @@ extern "C" {
 
         int base = 10;
         size_t prefix_len = 0;
+        bool is_float = false;
+
         if ( hex_pre > oct_pre && hex_pre > bin_pre ) {
             base = 16;
             prefix_len = hex_pre;
@@ -449,13 +454,14 @@ extern "C" {
             base = 8;
             prefix_len = oct_pre;
         } else if ( bin_pre > hex_pre && bin_pre > oct_pre ) {
-            base = 2;  prefix_len = bin_pre;
+            base = 2;
+            prefix_len = bin_pre;
         } else if ( ( hex_pre && ( hex_pre == oct_pre || hex_pre == bin_pre ) ) || ( oct_pre && ( oct_pre == bin_pre ) ) ) {
             fprintf( stderr, "[FATAL]: integer literal prefix overlap at %zu:%zu\n", lexer->line, lexer->column );
             exit( EXIT_FAILURE );
         }
 
-        if ( !isalnum( lexer_peek( lexer ) ) ) {
+        if ( !isalnum( lexer_peek( lexer ) ) && lexer_peek( lexer ) != '.' ) {
             token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
             t.type = TOKEN_INTEGER;
             t.i = strtoull( &lexer->source[lexer->cursor], NULL, 10 );
@@ -467,8 +473,27 @@ extern "C" {
 
         while ( 1 ) {
             char la = lexer_peek( lexer );
-            bool valid = false;
 
+            if ( la == '.' && base == 10 ) {
+                if ( is_float ) {
+                    fprintf( stderr, "[FATAL]: multiple decimal points in number at %zu:%zu\n", lexer->line, lexer->column );
+                    exit( EXIT_FAILURE );
+                }
+                is_float = true;
+                lexer_next( lexer );
+                continue;
+            }
+
+            if ( ( la == 'e' || la == 'E' ) && base == 10 ) {
+                is_float = true;
+                lexer_next( lexer );
+                if ( lexer_peek( lexer ) == '+' || lexer_peek( lexer ) == '-' ) {
+                    lexer_next( lexer );
+                }
+                continue;
+            }
+
+            bool valid = false;
             if ( base == 16 ) {
                 valid = isxdigit( la );
             } else if ( base == 10 ) {
@@ -479,13 +504,11 @@ extern "C" {
                 valid = ( la == '0' || la == '1' );
             }
 
-            if ( !valid ) {
-                break;
-            }
-
+            if ( !valid ) break;
             lexer_next( lexer );
         }
 
+        // Handle suffixes (optional)
         const char* suffix_str = lexer->source + lexer->cursor + 1;
         size_t hex_suf = match_any( suffix_str, LEXER_HEX_SUFFIXES );
         size_t oct_suf = match_any( suffix_str, LEXER_OCT_SUFFIXES );
@@ -498,45 +521,47 @@ extern "C" {
                 fprintf( stderr, "[FATAL]: invalid hex suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
                 exit( EXIT_FAILURE );
             }
-
             base = 16;
             suffix_len = hex_suf;
 
         } else if ( oct_suf > hex_suf && oct_suf > bin_suf ) {
             if ( base != 8 && base != 10 ) {
-                fprintf( stderr, "[FATAL]: invalid oct suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
+                fprintf( stderr, "[FATAL]: invalid octal suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
                 exit( EXIT_FAILURE );
             }
-
             base = 8;
             suffix_len = oct_suf;
 
         } else if ( bin_suf > hex_suf && bin_suf > oct_suf ) {
             if ( base != 2 && base != 10 ) {
-                fprintf( stderr, "[FATAL]: invalid bin suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
+                fprintf( stderr, "[FATAL]: invalid binary suffix on base %d at %zu:%zu\n", base, lexer->line, lexer->column );
                 exit( EXIT_FAILURE );
             }
-
             base = 2;
             suffix_len = bin_suf;
 
-        } else if (
-            ( hex_suf && ( hex_suf == oct_suf || hex_suf == bin_suf ) ) || ( oct_suf && ( oct_suf == bin_suf ) )
-            ) {
+        } else if ( ( hex_suf && ( hex_suf == oct_suf || hex_suf == bin_suf ) ) || ( oct_suf && ( oct_suf == bin_suf ) ) ) {
             fprintf( stderr, "[FATAL]: integer literal suffix overlap at %zu:%zu\n", lexer->line, lexer->column );
             exit( EXIT_FAILURE );
         }
 
         lexer_advance( lexer, suffix_len );
-
-        if ( isalnum( lexer_peek( lexer ) ) ) {
-            fprintf( stderr, "[FATAL]: unexpected token in integer literal at %zu:%zu\n", lexer->line, lexer->column );
-            exit( EXIT_FAILURE );
+        token_type_t token_type = TOKEN_ERROR;
+        char la = lexer_peek( lexer );
+        if ( isalnum( la ) ) {
+            if ( is_float && ( la == 'f' || la == 'F' ) ) {
+                token_type = TOKEN_FLOAT;
+                lexer_next( lexer );
+                //FIXME(hamid): we need to assert that we have whitespace/punctuation following a suffix
+            } else {
+                fprintf( stderr, "[FATAL]: unexpected token in number literal at %zu:%zu\n", lexer->line, lexer->column );
+                exit( EXIT_FAILURE );
+            }
         }
 
         size_t length = ( lexer->cursor - start + 1 ) - suffix_len;
         if ( length - prefix_len >= 128 ) {
-            fprintf( stderr, "[FATAL]: integer literal too large at %zu:%zu\n", lexer->line, lexer->column );
+            fprintf( stderr, "[FATAL]: number literal too large at %zu:%zu\n", lexer->line, lexer->column );
             exit( EXIT_FAILURE );
         }
 
@@ -545,11 +570,24 @@ extern "C" {
         buffer[length - prefix_len] = '\0';
 
         token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
-        t.type = TOKEN_INTEGER;
-        t.i = strtoull( buffer, NULL, base );
+
+        if ( is_float ) {
+            if ( token_type == TOKEN_ERROR ) {
+                t.type = TOKEN_DOUBLE;
+                t.d = strtod( buffer, NULL );
+            } else {
+                t.type = token_type;
+                t.f = strtof( buffer, NULL );
+            }
+        } else {
+            t.type = TOKEN_INTEGER;
+            t.i = strtoull( buffer, NULL, base );
+        }
+
         lexer_add_token( lexer, &t );
         return true;
     }
+
 
     void lexer_unhandled_escape( lexer_t lexer, bool unused ) {
         (void)unused;
@@ -733,7 +771,7 @@ extern "C" {
             // TODO(hamid): look into a trie data structure for these in the future
             bool matched = lexer_parse_string( lexer )
                 || lexer_parse_character( lexer )
-                || lexer_parse_integer( lexer )
+                || lexer_parse_number( lexer )
                 || lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )
                 || lexer_parse_keyword( lexer );
