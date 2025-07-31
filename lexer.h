@@ -17,69 +17,20 @@ extern "C" {
         TOKEN_OPERATOR,
         TOKEN_INTEGER,
         TOKEN_PUNCTUATION,
+        TOKEN_KEYWORD,
     } token_type_t;
 
     typedef enum {
-        // single
-        OP_PLUS,        // +
-        OP_MINUS,       // -
-        OP_STAR,        // *
-        OP_SLASH,       // /
-        OP_PERCENT,     // %
-        OP_AMP,         // &
-        OP_PIPE,        // |
-        OP_CARET,       // ^
-        OP_EQUAL,       // =
-        OP_BANG,        // !
-        OP_LESS,        // <
-        OP_GREATER,     // >
-        OP_TILDE,       // ~
-        OP_QUESTION,    // ?
-        OP_COLON,       // :
 
-        // double
-        OP_PLUS_EQUAL,        // +=
-        OP_MINUS_EQUAL,       // -=
-        OP_STAR_EQUAL,        // *=
-        OP_SLASH_EQUAL,       // /=
-        OP_PERCENT_EQUAL,     // %=
-        OP_AMP_EQUAL,         // &=
-        OP_PIPE_EQUAL,        // |=
-        OP_CARET_EQUAL,       // ^=
-        OP_EQUAL_EQUAL,       // ==
-        OP_BANG_EQUAL,        // !=
-        OP_LESS_EQUAL,        // <=
-        OP_GREATER_EQUAL,     // >=
-        OP_TILDE_EQUAL,       // ~=
-
-        OP_SHIFT_LEFT,        // <<
-        OP_SHIFT_RIGHT,       // >>
-
-        OP_LOGICAL_AND,       // &&
-        OP_LOGICAL_OR,        // ||
-
-        OP_ARROW,             // ->
-
-        OP_PLUS_PLUS,         // ++
-        OP_MINUS_MINUS,       // --
-
-        // triple
-        OP_SHIFT_LEFT_EQUAL,  // <<=
-        OP_SHIFT_RIGHT_EQUAL, // >>=
-        OP_ELLIPSIS,          // ...
     } op_type_t;
 
     typedef enum {
-        OP_DOT,         // .
-        OP_COMMA,       // ,
-        OP_SEMICOLON,   // ;
-        OP_LPAREN,      // (
-        OP_RPAREN,      // )
-        OP_LBRACKET,    // [
-        OP_RBRACKET,    // ]
-        OP_LBRACE,      // {
-        OP_RBRACE,      // }
+
     } punctuation_type_t;
+
+    typedef enum {
+
+    } keyword_type_t;
 
     typedef struct {
         size_t start;
@@ -97,6 +48,7 @@ extern "C" {
         union {
             op_type_t op;
             punctuation_type_t punct;
+            keyword_type_t keyword;
             uint64_t i;
         };
     } token_t;
@@ -269,254 +221,22 @@ extern "C" {
 
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
-            switch ( c ) {
-            case '\n': {
-                    lexer->column = 0;
-                    lexer->line += 1;
-                    continue;
-                }
-
-            case '\t': {
-                    continue;
-                }
-
-            case ' ': {
-                    continue;
-                }
-
-            case '\r': {
-                    lexer->column = 0;
-                    continue;
-                }
-
-            case '+': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_PLUS_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '+' ) {
-                        lexer_add_op( lexer, OP_PLUS_PLUS, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_PLUS, 1 );
-                    }
-                    break;
-                }
-
-            case '-': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_MINUS_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '>' ) {
-                        lexer_add_op( lexer, OP_ARROW, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '-' ) {
-                        lexer_add_op( lexer, OP_MINUS_MINUS, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_MINUS, 1 );
-                    }
-                    break;
-                }
-
-            case '*': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_STAR_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_STAR, 1 );
-                    }
-                    break;
-                }
-
-            case '/': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_SLASH_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_SLASH, 1 );
-                    }
-                    break;
-                }
-
-            case '%': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_PERCENT_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_PERCENT, 1 );
-                    }
-                    break;
-                }
-
-            case '&': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_AMP_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '&' ) {
-                        lexer_add_op( lexer, OP_LOGICAL_AND, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_AMP, 1 );
-                    }
-                    break;
-                }
-
-            case '|': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_PIPE_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '|' ) {
-                        lexer_add_op( lexer, OP_LOGICAL_OR, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_PIPE, 1 );
-                    }
-                    break;
-                }
-
-            case '^': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_CARET_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_CARET, 1 );
-                    }
-                    break;
-                }
-
-            case '=': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_EQUAL_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_EQUAL, 1 );
-                    }
-                    break;
-                }
-
-            case '!': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_BANG_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_BANG, 1 );
-                    }
-                    break;
-                }
-
-            case '<': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_LESS_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '<' ) {
-                        if ( lexer_lookahead2( lexer ) == '=' ) {
-                            lexer_add_op( lexer, OP_SHIFT_LEFT_EQUAL, 3 );
-                            lexer_next( lexer );
-                        } else {
-                            lexer_add_op( lexer, OP_SHIFT_LEFT, 2 );
-                        }
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_LESS, 1 );
-                    }
-                    break;
-                }
-
-            case '>': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_GREATER_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else if ( lexer_lookahead( lexer ) == '>' ) {
-                        if ( lexer_lookahead2( lexer ) == '=' ) {
-                            lexer_add_op( lexer, OP_SHIFT_RIGHT_EQUAL, 3 );
-                            lexer_next( lexer );
-                        } else {
-                            lexer_add_op( lexer, OP_SHIFT_RIGHT, 2 );
-                        }
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_GREATER, 1 );
-                    }
-                    break;
-                }
-
-            case '~': {
-                    if ( lexer_lookahead( lexer ) == '=' ) {
-                        lexer_add_op( lexer, OP_TILDE_EQUAL, 2 );
-                        lexer_next( lexer );
-                    } else {
-                        lexer_add_op( lexer, OP_TILDE, 1 );
-                    }
-                    break;
-                }
-
-            case '?': {
-                    lexer_add_op( lexer, OP_QUESTION, 1 );
-                    break;
-                }
-
-            case ':': {
-                    lexer_add_op( lexer, OP_COLON, 1 );
-                    break;
-                }
-
-            case '.': {
-                    if ( lexer_lookahead( lexer ) == '.' && lexer_lookahead2( lexer ) == '.' ) {
-                        lexer_add_op( lexer, OP_ELLIPSIS, 3 );
-                        lexer_next( lexer ); lexer_next( lexer );
-                    } else {
-                        lexer_add_punct( lexer, OP_DOT, 1 );
-                    }
-                    break;
-                }
-
-            case ',': {
-                    lexer_add_punct( lexer, OP_COMMA, 1 );
-                    break;
-                }
-
-            case ';': {
-                    lexer_add_punct( lexer, OP_SEMICOLON, 1 );
-                    break;
-                }
-
-            case '(': {
-                    lexer_add_punct( lexer, OP_LPAREN, 1 );
-                    break;
+            if ( c = '\n' ) {
+                lexer->column = 0;
+                lexer->line += 1;
+                continue;
+            } else if ( c = '\t' ) {
+                continue;
+            } else if ( c = ' ' ) {
+                continue;
+            } else if ( c = '\r' ) {
+                lexer->column = 0;
+                continue;
             }
 
-            case ')': {
-                    lexer_add_punct( lexer, OP_RPAREN, 1 );
-                    break;
-                }
-
-            case '[': {
-                    lexer_add_punct( lexer, OP_LBRACKET, 1 );
-                    break;
-                }
-
-            case ']': {
-                    lexer_add_punct( lexer, OP_RBRACKET, 1 );
-                    break;
-                }
-
-            case '{': {
-                    lexer_add_punct( lexer, OP_LBRACE, 1 );
-                    break;
-                }
-
-            case '}': {
-                    lexer_add_punct( lexer, OP_RBRACE, 1 );
-                    break;
-                }
-
-
-            default: {
-                    fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );
-                    exit( EXIT_FAILURE );
-                }
+            fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );
+            exit( EXIT_FAILURE );
         }
-    }
     }
 
 
