@@ -11,6 +11,9 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+
+#include "lexer.def"
 
     typedef enum {
         TOKEN_ERROR,
@@ -21,16 +24,58 @@ extern "C" {
     } token_type_t;
 
     typedef enum {
+    # define LEXER_OP(sym, name) name,
+        LEXER_OPERATOR_LIST
+    # undef LEXER_OP
+    } operator_type_t;
 
-    } op_type_t;
+    typedef struct {
+        const char* symbol;
+        operator_type_t type;
+        size_t length;
+    } operator_def_t;
+
+    static operator_def_t operator_defs[] = {
+        # define LEXER_OP(sym, name) { sym, name, sizeof(sym) - 1 },
+        LEXER_OPERATOR_LIST
+        # undef LEXER_OP
+    };
 
     typedef enum {
-
+    # define LEXER_PUNCT(sym, name) name,
+        LEXER_PUNCTUATION_LIST
+    # undef LEXER_PUNCT
     } punctuation_type_t;
 
-    typedef enum {
+    typedef struct {
+        const char* symbol;
+        punctuation_type_t type;
+        size_t length;
+    } punctuation_def_t;
 
+    static punctuation_def_t punctuation_defs[] = {
+        # define LEXER_PUNCT(sym, name) { sym, name, sizeof(sym) - 1 },
+        LEXER_PUNCTUATION_LIST
+        # undef LEXER_PUNCT
+    };
+
+    typedef enum {
+    # define LEXER_KEYWORD(sym, name) name,
+        LEXER_KEYWORD_LIST
+    # undef LEXER_KEYWORD
     } keyword_type_t;
+
+    typedef struct {
+        const char* symbol;
+        keyword_type_t type;
+        size_t length;
+    } keyword_def_t;
+
+    static keyword_def_t keyword_defs[] = {
+        # define LEXER_KEYWORD(sym, name) { sym, name, sizeof(sym) - 1 },
+        LEXER_KEYWORD_LIST
+        # undef LEXER_KEYWORD
+    };
 
     typedef struct {
         size_t start;
@@ -46,7 +91,7 @@ extern "C" {
         lexer_slice_t lexeme;
 
         union {
-            op_type_t op;
+            operator_type_t op;
             punctuation_type_t punct;
             keyword_type_t keyword;
             uint64_t i;
@@ -69,7 +114,7 @@ extern "C" {
         return token;
     }
 
-    token_t token_create_op( op_type_t type, size_t line, size_t column, size_t lstart, size_t lend ) {
+    token_t token_create_operator( operator_type_t type, size_t line, size_t column, size_t lstart, size_t lend ) {
         token_t token = token_create_generic( line, column, lstart, lend );
         token.type = TOKEN_OPERATOR;
 
@@ -81,7 +126,15 @@ extern "C" {
         token_t token = token_create_generic( line, column, lstart, lend );
         token.type = TOKEN_PUNCTUATION;
 
-        token.op = type;
+        token.punct = type;
+        return token;
+    }
+
+    token_t token_create_keyword( punctuation_type_t type, size_t line, size_t column, size_t lstart, size_t lend ) {
+        token_t token = token_create_generic( line, column, lstart, lend );
+        token.type = TOKEN_KEYWORD;
+
+        token.keyword = type;
         return token;
     }
 
@@ -175,8 +228,8 @@ extern "C" {
         token_list_add( &lexer->token_list, token );
     }
 
-    void lexer_add_op( lexer_t lexer, op_type_t type, size_t length ) {
-        token_t token = token_create_op( type, lexer->line, lexer->column, lexer->cursor, lexer->cursor + length );
+    void lexer_add_operator( lexer_t lexer, operator_type_t type, size_t length ) {
+        token_t token = token_create_operator( type, lexer->line, lexer->column, lexer->cursor, lexer->cursor + length );
         lexer_add_token( lexer, &token );
     }
 
@@ -185,12 +238,9 @@ extern "C" {
         lexer_add_token( lexer, &token );
     }
 
-    char lexer_current( lexer_inner_t* lexer ) {
-        if ( lexer->cursor == lexer->size ) {
-            return '\0';
-        }
-
-        return lexer->source[lexer->cursor];
+    void lexer_add_keyword( lexer_t lexer, keyword_type_t type, size_t length ) {
+        token_t token = token_create_keyword( type, lexer->line, lexer->column, lexer->cursor, lexer->cursor + length );
+        lexer_add_token( lexer, &token );
     }
 
     char lexer_next( lexer_inner_t* lexer ) {
@@ -203,42 +253,139 @@ extern "C" {
         return lexer->source[lexer->cursor];
     }
 
+    char lexer_lookaheadx( lexer_inner_t* lexer, size_t x ) {
+        if ( lexer->cursor + x >= lexer->size ) {
+            return '\0';
+        }
+
+        return lexer->source[lexer->cursor + x];
+    }
+
+    char lexer_current( lexer_inner_t* lexer ) {
+        return lexer_lookaheadx( lexer, 0 );
+    }
+
     char lexer_lookahead( lexer_inner_t* lexer ) {
-        if ( lexer->cursor + 1 >= lexer->size ) {
-            return '\0';
-        }
-
-        return lexer->source[lexer->cursor + 1];
+        return lexer_lookaheadx( lexer, 1 );
     }
 
-    char lexer_lookahead2( lexer_inner_t* lexer ) {
-        if ( lexer->cursor + 2 >= lexer->size ) {
-            return '\0';
+    bool lexer_parse_operator( lexer_t lexer ) {
+        size_t max_len = 0;
+        for ( size_t i = 0; i < sizeof( operator_defs ) / sizeof( operator_defs[0] ); i++ ) {
+            if ( operator_defs[i].length > max_len )
+                max_len = operator_defs[i].length;
         }
 
-        return lexer->source[lexer->cursor + 2];
+        for ( size_t pass = max_len; pass > 0; pass-- ) {
+            for ( size_t i = 0; i < sizeof( operator_defs ) / sizeof( operator_defs[0] ); i++ ) {
+                operator_def_t* operator = &operator_defs[i];
+
+                if ( operator->length != pass ) {
+                    continue;
+                }
+
+                if ( lexer->cursor + operator->length <= lexer->size ) {
+                    if ( strncmp( lexer->source + lexer->cursor, operator->symbol, operator->length ) == 0 ) {
+                        lexer_add_operator( lexer, operator->type, operator->length );
+                        for ( size_t j = 0; j < operator->length - 1; j++ ) lexer_next( lexer );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
+
+    bool lexer_parse_punctuation( lexer_t lexer ) {
+        size_t max_len = 0;
+        for ( size_t i = 0; i < sizeof( punctuation_defs ) / sizeof( punctuation_defs[0] ); i++ ) {
+            if ( punctuation_defs[i].length > max_len )
+                max_len = punctuation_defs[i].length;
+        }
+
+        for ( size_t pass = max_len; pass > 0; pass-- ) {
+            for ( size_t i = 0; i < sizeof( punctuation_defs ) / sizeof( punctuation_defs[0] ); i++ ) {
+                punctuation_def_t* punctuation = &punctuation_defs[i];
+
+                if ( punctuation->length != pass ) {
+                    continue;
+                }
+
+                if ( lexer->cursor + punctuation->length <= lexer->size ) {
+                    if ( strncmp( lexer->source + lexer->cursor, punctuation->symbol, punctuation->length ) == 0 ) {
+                        lexer_add_punct( lexer, punctuation->type, punctuation->length );
+                        for ( size_t j = 0; j < punctuation->length - 1; j++ ) lexer_next( lexer );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+
+    bool lexer_parse_keyword( lexer_t lexer ) {
+        size_t max_len = 0;
+        for ( size_t i = 0; i < sizeof( keyword_defs ) / sizeof( keyword_defs[0] ); i++ ) {
+            if ( keyword_defs[i].length > max_len )
+                max_len = keyword_defs[i].length;
+        }
+
+        for ( size_t pass = max_len; pass > 0; pass-- ) {
+            for ( size_t i = 0; i < sizeof( keyword_defs ) / sizeof( keyword_defs[0] ); i++ ) {
+                keyword_def_t* keyword = &keyword_defs[i];
+
+                if ( keyword->length != pass ) {
+                    continue;
+                }
+
+                if ( lexer->cursor + keyword->length <= lexer->size ) {
+                    if ( strncmp( lexer->source + lexer->cursor, keyword->symbol, keyword->length ) == 0 ) {
+                        lexer_add_keyword( lexer, keyword->type, keyword->length );
+                        for ( size_t j = 0; j < keyword->length - 1; j++ ) lexer_next( lexer );
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
 
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
-            if ( c = '\n' ) {
+            if ( c == '\n' ) {
                 lexer->column = 0;
                 lexer->line += 1;
                 continue;
-            } else if ( c = '\t' ) {
+            } else if ( c == '\t' ) {
                 continue;
-            } else if ( c = ' ' ) {
+            } else if ( c == ' ' ) {
                 continue;
-            } else if ( c = '\r' ) {
+            } else if ( c == '\r' ) {
                 lexer->column = 0;
                 continue;
             }
 
-            fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );
-            exit( EXIT_FAILURE );
+            bool matched = lexer_parse_operator( lexer )
+                || lexer_parse_punctuation( lexer )
+                || lexer_parse_keyword( lexer );
+
+
+            if ( !matched ) {
+                fprintf( stderr, "[FATAL]: unhandled token at %zu:%zu -> `%c`\n", lexer->line, lexer->column, c );
+                exit( EXIT_FAILURE );
+            }
         }
     }
 
+
+#undef LEXER_OPERATOR_LIST
+#undef LEXER_PUNCTUATION_LIST
+#undef LEXER_KEYWORD_LIST
 
 #ifdef __cplusplus
 }

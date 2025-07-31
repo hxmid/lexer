@@ -1,0 +1,122 @@
+#pragma once
+
+// ---------------------------
+// OPERATORS
+// ---------------------------
+#define LEXER_OPERATOR_LIST \
+    /* arithmetic */ \
+    LEXER_OP("+", OP_PLUS) \
+    LEXER_OP("-", OP_MINUS) \
+    LEXER_OP("*", OP_MUL) \
+    LEXER_OP("/", OP_DIV) \
+    LEXER_OP("%", OP_MOD) \
+    \
+    /* increment/decrement */ \
+    LEXER_OP("++", OP_INC) \
+    LEXER_OP("--", OP_DEC) \
+    \
+    /* assignment */ \
+    LEXER_OP("=", OP_ASSIGN) \
+    LEXER_OP("+=", OP_ADD_ASSIGN) \
+    LEXER_OP("-=", OP_SUB_ASSIGN) \
+    LEXER_OP("*=", OP_MUL_ASSIGN) \
+    LEXER_OP("/=", OP_DIV_ASSIGN) \
+    LEXER_OP("%=", OP_MOD_ASSIGN) \
+    \
+    /* comparison */ \
+    LEXER_OP("==", OP_EQ) \
+    LEXER_OP("!=", OP_NEQ) \
+    LEXER_OP("<", OP_LT) \
+    LEXER_OP("<=", OP_LTE) \
+    LEXER_OP(">", OP_GT) \
+    LEXER_OP(">=", OP_GTE) \
+    \
+    /* logical */ \
+    LEXER_OP("&&", OP_AND) \
+    LEXER_OP("||", OP_OR) \
+    LEXER_OP("!", OP_NOT) \
+    \
+    /* bitwise */ \
+    LEXER_OP("&", OP_BIT_AND) \
+    LEXER_OP("|", OP_BIT_OR) \
+    LEXER_OP("^", OP_BIT_XOR) \
+    LEXER_OP("~", OP_BIT_NOT) \
+    LEXER_OP("<<", OP_LSHIFT) \
+    LEXER_OP(">>", OP_RSHIFT) \
+    \
+    /* compound bitwise assignments */ \
+    LEXER_OP("&=", OP_BIT_AND_ASSIGN) \
+    LEXER_OP("|=", OP_BIT_OR_ASSIGN) \
+    LEXER_OP("^=", OP_BIT_XOR_ASSIGN) \
+    LEXER_OP("<<=", OP_LSHIFT_ASSIGN) \
+    LEXER_OP(">>=", OP_RSHIFT_ASSIGN) \
+    \
+    /* misc */ \
+    LEXER_OP("?", OP_TERNARY_Q) \
+    LEXER_OP(":", OP_TERNARY_COLON) \
+    LEXER_OP("->", OP_ARROW) \
+    LEXER_OP(".", OP_MEMBER) \
+
+
+// ---------------------------
+// PUNCTUATION
+// ---------------------------
+#define LEXER_PUNCTUATION_LIST \
+    LEXER_PUNCT("(", PUNCT_LPAREN) \
+    LEXER_PUNCT(")", PUNCT_RPAREN) \
+    LEXER_PUNCT("{", PUNCT_LBRACE) \
+    LEXER_PUNCT("}", PUNCT_RBRACE) \
+    LEXER_PUNCT("[", PUNCT_LBRACKET) \
+    LEXER_PUNCT("]", PUNCT_RBRACKET) \
+    LEXER_PUNCT(",", PUNCT_COMMA) \
+    LEXER_PUNCT(";", PUNCT_SEMICOLON) \
+
+
+// ---------------------------
+// KEYWORDS
+// ---------------------------
+#define LEXER_KEYWORD_LIST \
+    /* control flow */ \
+    LEXER_KEYWORD("if", KEYWORD_IF) \
+    LEXER_KEYWORD("else", KEYWORD_ELSE) \
+    LEXER_KEYWORD("switch", KEYWORD_SWITCH) \
+    LEXER_KEYWORD("case", KEYWORD_CASE) \
+    LEXER_KEYWORD("default", KEYWORD_DEFAULT) \
+    LEXER_KEYWORD("break", KEYWORD_BREAK) \
+    LEXER_KEYWORD("continue", KEYWORD_CONTINUE) \
+    LEXER_KEYWORD("return", KEYWORD_RETURN) \
+    \
+    /* loops */ \
+    LEXER_KEYWORD("for", KEYWORD_FOR) \
+    LEXER_KEYWORD("while", KEYWORD_WHILE) \
+    LEXER_KEYWORD("do", KEYWORD_DO) \
+    \
+    /* types */ \
+    LEXER_KEYWORD("int", KEYWORD_INT) \
+    LEXER_KEYWORD("char", KEYWORD_CHAR) \
+    LEXER_KEYWORD("short", KEYWORD_SHORT) \
+    LEXER_KEYWORD("long", KEYWORD_LONG) \
+    LEXER_KEYWORD("float", KEYWORD_FLOAT) \
+    LEXER_KEYWORD("double", KEYWORD_DOUBLE) \
+    LEXER_KEYWORD("void", KEYWORD_VOID) \
+    \
+    /* storage class */ \
+    LEXER_KEYWORD("static", KEYWORD_STATIC) \
+    LEXER_KEYWORD("extern", KEYWORD_EXTERN) \
+    LEXER_KEYWORD("register", KEYWORD_REGISTER) \
+    LEXER_KEYWORD("auto", KEYWORD_AUTO) \
+    \
+    /* qualifiers */ \
+    LEXER_KEYWORD("const", KEYWORD_CONST) \
+    LEXER_KEYWORD("volatile", KEYWORD_VOLATILE) \
+    LEXER_KEYWORD("restrict", KEYWORD_RESTRICT) \
+    \
+    /* struct/enum/union */ \
+    LEXER_KEYWORD("struct", KEYWORD_STRUCT) \
+    LEXER_KEYWORD("union", KEYWORD_UNION) \
+    LEXER_KEYWORD("enum", KEYWORD_ENUM) \
+    \
+    /* misc */ \
+    LEXER_KEYWORD("sizeof", KEYWORD_SIZEOF) \
+    LEXER_KEYWORD("typedef", KEYWORD_TYPEDEF) \
+    LEXER_KEYWORD("inline", KEYWORD_INLINE)
