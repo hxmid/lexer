@@ -13,6 +13,7 @@ extern "C" {
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "lexer.def"
 
@@ -38,6 +39,7 @@ extern "C" {
         TOKEN_PUNCTUATION,
         TOKEN_KEYWORD,
         TOKEN_CHARACTER,
+        TOKEN_STRING,
     } token_type_t;
 
     typedef enum {
@@ -100,6 +102,48 @@ extern "C" {
     } lexer_slice_t;
 
     typedef struct {
+        size_t length;
+        size_t capacity;
+        uint64_t* str;
+    } string_literal_t;
+
+    string_literal_t* string_literal_create( void ) {
+        string_literal_t* string = (string_literal_t*)calloc( 1, sizeof( string_literal_t ) );
+        if ( !string ) {
+            fprintf( stderr, "[FATAL]: could not allocate memory for `string_literal_t`\n" );
+            exit( EXIT_FAILURE );
+        }
+        string->length = 0;
+        string->capacity = 1;
+        string->str = (uint64_t*)calloc( string->capacity, sizeof( uint64_t ) );
+        if ( !string->str ) {
+            fprintf( stderr, "[FATAL]: could not allocate memory for `string_literal_t.str`\n" );
+            exit( EXIT_FAILURE );
+        }
+        return string;
+    }
+
+    void string_literal_free( string_literal_t* string ) {
+        free( (void*)string->str );
+        free( (void*)string );
+    }
+
+    void string_literal_append( string_literal_t* string, uint64_t c ) {
+        if ( string->length == string->capacity ) {
+            string->capacity <<= 1;
+            string->str = realloc( string->str, string->capacity * sizeof( uint64_t ) );
+            if ( !string->str ) {
+                fprintf( stderr, "[FATAL]: could not reallocate memory for `string_literal_t.str`\n" );
+                exit( EXIT_FAILURE );
+            }
+        }
+
+        string->str[string->length] = c;
+        string->length += 1;
+        string->str[string->length] = '\0';
+    }
+
+    typedef struct {
         token_type_t type;
 
         size_t line;
@@ -112,6 +156,7 @@ extern "C" {
             punctuation_type_t punct;
             keyword_type_t keyword;
             uint64_t i;
+            string_literal_t* string;
         };
     } token_t;
 
@@ -176,6 +221,11 @@ extern "C" {
     }
 
     void token_list_deinit( token_list_t* token_list ) {
+        for ( size_t i = 0; i < token_list->length; i++ ) {
+            if ( token_list->tokens[i].type == TOKEN_STRING ) {
+                string_literal_free( (void*)token_list->tokens[i].string );
+            }
+        }
         free( (void*)token_list->tokens );
         token_list->length = 0;
         token_list->capacity = 0;
@@ -589,7 +639,10 @@ extern "C" {
         size_t start = lexer->cursor;
         size_t column = lexer->column;
 
-        if ( lexer_current( lexer ) != LEXER_CHAR_DELIMITER ) return false;
+        if ( lexer_current( lexer ) != LEXER_CHAR_DELIMITER ) {
+            return false;
+        }
+
         lexer_next( lexer );
 
         int64_t c = lexer_current( lexer );
@@ -612,6 +665,48 @@ extern "C" {
         return true;
     }
 
+    bool lexer_parse_string( lexer_t lexer ) {
+        size_t start = lexer->cursor;
+        size_t column = lexer->column;
+        size_t line = lexer->line;
+
+        const char* str = lexer->source + start;
+        size_t delimiter_size = match_any( str, LEXER_STRING_DELIMITERS );
+        if ( !delimiter_size ) {
+            return false;
+        }
+
+        string_literal_t* string = string_literal_create();
+
+        lexer_advance( lexer, delimiter_size );
+
+        for ( uint64_t c = lexer_current( lexer ); strncmp( lexer->source + lexer->cursor, str, delimiter_size ); c = lexer_next( lexer ) ) {
+            if ( c == '\0' ) {
+                fprintf( stderr, "[FATAL]: Unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
+                exit( EXIT_FAILURE );
+            }
+
+        # if !LEXER_SUPPORT_MULTILINE_STRINGS
+            else if ( c == '\n' ) {
+                fprintf( stderr, "[FATAL]: Unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
+                exit( EXIT_FAILURE );
+            }
+        # endif // !LEXER_SUPPORT_MULTILINE_STRINGS
+
+            else if ( c == LEXER_ESCAPE_CHAR ) {
+                c = lexer_unescape_character( lexer );
+            }
+
+            string_literal_append( string, c );
+
+        }
+        lexer_advance( lexer, delimiter_size - 1 );
+        token_t token = token_create_generic( line, column, start, lexer->cursor + 1 );
+        token.type = TOKEN_STRING;
+        token.string = string;
+        lexer_add_token( lexer, &token );
+        return true;
+    }
 
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
@@ -629,7 +724,8 @@ extern "C" {
             }
 
             // TODO(hamid): look into a trie data structure for these in the future
-            bool matched = lexer_parse_character( lexer )
+            bool matched = lexer_parse_string( lexer )
+                || lexer_parse_character( lexer )
                 || lexer_parse_integer( lexer )
                 || lexer_parse_operator( lexer )
                 || lexer_parse_punctuation( lexer )

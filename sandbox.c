@@ -5,7 +5,7 @@
 int main( void ) {
     lexer_t lexer = lexer_create_from_string(
         "int ( void ) {\n"
-        "    'h' 'i' '$' '\\n' '\\\\' '\\x00' '\\777';"
+        "    \"hi\"$$no \"ok\"$$\"short\";"
         "    return '\\0';\n"
         "}"
     );
@@ -30,6 +30,9 @@ int main( void ) {
             break;
         case TOKEN_CHARACTER:
             printf( "c: %5zu, ", t->i );
+            break;
+        case TOKEN_STRING:
+            printf( "s: %5s, ", t->string->str );
             break;
         }
         printf( "str: " );
