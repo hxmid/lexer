@@ -19,14 +19,14 @@
     LEXER_ESC_FIXED('r', '\r') \
     LEXER_ESC_FIXED('t', '\t') \
     LEXER_ESC_FIXED('v', '\v') \
-    LEXER_ESC_FIXED('\?', '\?') \
+    LEXER_ESC_FIXED('?', '\?') \
     LEXER_ESC_VARIABLE('x', lexer_handle_hex_escape) \
     LEXER_ESC_VARIABLE('u', lexer_handle_unicode_escape16) \
     LEXER_ESC_VARIABLE('U', lexer_handle_unicode_escape32) \
     LEXER_ESC_FALLBACK(lexer_handle_octal_escape) \
 
 // ---------------------------
-// INTEGER PREFIX AND SUFFIX
+// INTEGER RADIX PREFIX AND SUFFIX
 // ---------------------------
 #define LEXER_HEX_PREFIXES   "0x 0X"
 #define LEXER_HEX_SUFFIXES   ""

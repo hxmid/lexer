@@ -55,9 +55,9 @@ extern "C" {
     } operator_def_t;
 
     static operator_def_t operator_defs[] = {
-        # define LEXER_OP(sym, name) { sym, name, sizeof(sym) - 1 },
+    # define LEXER_OP(sym, name) { sym, name, sizeof(sym) - 1 },
         LEXER_OPERATOR_LIST
-        # undef LEXER_OP
+    # undef LEXER_OP
     };
 
     typedef enum {
@@ -73,9 +73,9 @@ extern "C" {
     } punctuation_def_t;
 
     static punctuation_def_t punctuation_defs[] = {
-        # define LEXER_PUNCT(sym, name) { sym, name, sizeof(sym) - 1 },
+    # define LEXER_PUNCT(sym, name) { sym, name, sizeof(sym) - 1 },
         LEXER_PUNCTUATION_LIST
-        # undef LEXER_PUNCT
+    # undef LEXER_PUNCT
     };
 
     typedef enum {
@@ -91,9 +91,9 @@ extern "C" {
     } keyword_def_t;
 
     static keyword_def_t keyword_defs[] = {
-        # define LEXER_KEYWORD(sym, name) { sym, name, sizeof(sym) - 1 },
+    # define LEXER_KEYWORD(sym, name) { sym, name, sizeof(sym) - 1 },
         LEXER_KEYWORD_LIST
-        # undef LEXER_KEYWORD
+    # undef LEXER_KEYWORD
     };
 
     typedef struct {
@@ -324,7 +324,7 @@ extern "C" {
         return lexer->source[lexer->cursor];
     }
 
-    char lexer_lookaheadx( lexer_inner_t* lexer, size_t x ) {
+    char lexer_peekx( lexer_inner_t* lexer, size_t x ) {
         if ( lexer->cursor + x >= lexer->size ) {
             return '\0';
         }
@@ -333,11 +333,11 @@ extern "C" {
     }
 
     char lexer_current( lexer_inner_t* lexer ) {
-        return lexer_lookaheadx( lexer, 0 );
+        return lexer_peekx( lexer, 0 );
     }
 
-    char lexer_lookahead( lexer_inner_t* lexer ) {
-        return lexer_lookaheadx( lexer, 1 );
+    char lexer_peek( lexer_inner_t* lexer ) {
+        return lexer_peekx( lexer, 1 );
     }
 
     bool lexer_parse_operator( lexer_t lexer ) {
@@ -455,7 +455,7 @@ extern "C" {
             exit( EXIT_FAILURE );
         }
 
-        if ( !isalnum( lexer_lookahead( lexer ) ) ) {
+        if ( !isalnum( lexer_peek( lexer ) ) ) {
             token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
             t.type = TOKEN_INTEGER;
             t.i = strtoull( &lexer->source[lexer->cursor], NULL, 10 );
@@ -466,7 +466,7 @@ extern "C" {
         lexer_advance( lexer, prefix_len );
 
         while ( 1 ) {
-            char la = lexer_lookahead( lexer );
+            char la = lexer_peek( lexer );
             bool valid = false;
 
             if ( base == 16 ) {
@@ -529,7 +529,7 @@ extern "C" {
 
         lexer_advance( lexer, suffix_len );
 
-        if ( isalnum( lexer_lookahead( lexer ) ) ) {
+        if ( isalnum( lexer_peek( lexer ) ) ) {
             fprintf( stderr, "[FATAL]: unexpected token in integer literal at %zu:%zu\n", lexer->line, lexer->column );
             exit( EXIT_FAILURE );
         }
@@ -561,7 +561,7 @@ extern "C" {
         char buffer[17] = { 0 };
         size_t i = 0;
 
-        while ( i < 16 && isxdigit( lexer_lookahead( lexer ) ) ) {
+        while ( i < 16 && isxdigit( lexer_peek( lexer ) ) ) {
             buffer[i++] = lexer_next( lexer );
         }
 
@@ -579,7 +579,7 @@ extern "C" {
     uint16_t lexer_handle_unicode_escape16( lexer_t lexer, bool is_fallback ) {
         char buffer[4] = { 0 };
         for ( int i = 0; i < 4; i++ ) {
-            char c = lexer_lookahead( lexer );
+            char c = lexer_peek( lexer );
             if ( !isxdigit( c ) ) {
                 if ( i == 0 && is_fallback ) {
                     lexer_unhandled_escape( lexer, is_fallback );
@@ -595,7 +595,7 @@ extern "C" {
     uint32_t lexer_handle_unicode_escape32( lexer_t lexer, bool is_fallback ) {
         char buffer[8] = { 0 };
         for ( int i = 0; i < 8; i++ ) {
-            char c = lexer_lookahead( lexer );
+            char c = lexer_peek( lexer );
             if ( !isxdigit( c ) ) {
                 if ( i == 0 && is_fallback ) {
                     lexer_unhandled_escape( lexer, is_fallback );
@@ -611,7 +611,7 @@ extern "C" {
     uint16_t lexer_handle_octal_escape( lexer_t lexer, bool is_fallback ) {
         char buffer[4] = { 0 };
         for ( int i = 0; i < 3; i++ ) {
-            char c = lexer_lookahead( lexer );
+            char c = lexer_peek( lexer );
             if ( !( c >= '0' && c <= '7' ) ) {
                 if ( i == 0 && is_fallback ) {
                     lexer_unhandled_escape( lexer, is_fallback );
@@ -627,7 +627,7 @@ extern "C" {
 # define LEXER_ESC_VARIABLE(c, fn) case c: lexer_next( lexer ); return fn(lexer, false);
 # define LEXER_ESC_FALLBACK(fn)   default: return fn(lexer, true);
     uint64_t lexer_unescape_character( lexer_t lexer ) {
-        switch ( lexer_lookahead( lexer ) ) {
+        switch ( lexer_peek( lexer ) ) {
             LEXER_ESCAPE_CHAR_LIST
         }
     }
@@ -686,12 +686,15 @@ extern "C" {
                 exit( EXIT_FAILURE );
             }
 
-        # if !LEXER_SUPPORT_MULTILINE_STRINGS
             else if ( c == '\n' ) {
+            # if    !LEXER_SUPPORT_MULTILINE_STRINGS
                 fprintf( stderr, "[FATAL]: unterminated string starting at %zu:%zu (expected `%.*s`)\n", line, column, delimiter_size, str );
                 exit( EXIT_FAILURE );
+            # else  // LEXER_SUPPORT_MULTILINE_STRINGS
+                lexer->line += 1;
+                lexer->column = 0;
+            # endif // !LEXER_SUPPORT_MULTILINE_STRINGS
             }
-        # endif // !LEXER_SUPPORT_MULTILINE_STRINGS
 
             else if ( c == LEXER_ESCAPE_CHAR ) {
                 c = lexer_unescape_character( lexer );
