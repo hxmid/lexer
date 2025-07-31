@@ -545,18 +545,23 @@ extern "C" {
             exit( EXIT_FAILURE );
         }
 
-        lexer_advance( lexer, suffix_len );
         token_type_t token_type = TOKEN_ERROR;
         char la = lexer_peek( lexer );
-        if ( isalnum( la ) ) {
-            if ( is_float && ( la == 'f' || la == 'F' ) ) {
+        if ( is_float && isalnum( la ) ) {
+            suffix_len = match_any( lexer->source + lexer->cursor + 1, LEXER_FLOAT_SUFFIXES );
+            if ( suffix_len ) {
                 token_type = TOKEN_FLOAT;
-                lexer_next( lexer );
-                //FIXME(hamid): we need to assert that we have whitespace/punctuation following a suffix
             } else {
                 fprintf( stderr, "[FATAL]: unexpected token in number literal at %zu:%zu\n", lexer->line, lexer->column );
                 exit( EXIT_FAILURE );
             }
+        }
+
+        lexer_advance( lexer, suffix_len );
+
+        if ( isalnum( lexer_peekx( lexer, 1 ) ) ) {
+            fprintf( stderr, "[FATAL]: expected whitespace or punctuation at %zu:%zu to follow a number suffix\n", lexer->line, lexer->column + suffix_len + 1 );
+            exit( EXIT_FAILURE );
         }
 
         size_t length = ( lexer->cursor - start + 1 ) - suffix_len;

@@ -36,6 +36,11 @@
 #define LEXER_BIN_SUFFIXES   ""
 
 // ---------------------------
+// FLOATING POINT PREFIX AND SUFFIX
+// ---------------------------
+#define LEXER_FLOAT_SUFFIXES "f F"
+
+// ---------------------------
 // OPERATORS
 // ---------------------------
 #define LEXER_OPERATOR_LIST \
