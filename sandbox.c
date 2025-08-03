@@ -3,7 +3,7 @@
 int main( void ) {
     lexer_t lexer = lexer_create_from_string(
         "int main( void ) {\n"
-        "    printf( \"Hello, World!\" );"
+        "    printf( \"Hello, World!\" ); // prints hello world"
         "    return 0;\n"
         "}"
     );

@@ -783,8 +783,6 @@ extern "C" {
             string_literal_append( string, lexer_next( lexer ) );
         }
 
-        size_t length = lexer->cursor - start + 1;
-
         token_t t = token_create_generic( lexer->line, column, start, lexer->cursor + 1 );
 
         t.type = TOKEN_IDENTIFIER;
@@ -807,7 +805,15 @@ extern "C" {
             } else if ( c == '\r' ) {
                 lexer->column = 0;
                 continue;
+            } else if ( !strncmp( &lexer->source[lexer->cursor], LEXER_LINE_COMMENT_STRING, strlen( LEXER_LINE_COMMENT_STRING ) ) ) {
+                for ( c = lexer_peek( lexer ); c != '\n' && c != '\0'; c = lexer_peek( lexer ) ) {
+                    lexer_next( lexer );
+                }
+                continue;
             }
+
+            // TODO(hamid): multiline comments
+            // TODO(hamid): preprocessor
 
             // TODO(hamid): look into a trie data structure for these in the future
             bool matched = lexer_parse_string( lexer )
