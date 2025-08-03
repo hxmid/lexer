@@ -792,6 +792,32 @@ extern "C" {
         return true;
     }
 
+    bool lexer_parse_multiline_comment( lexer_t lexer ) {
+        size_t column = lexer->column;
+        size_t line = lexer->line;
+        if ( !strncmp( &lexer->source[lexer->cursor], LEXER_MULTILINE_COMMENT_OPEN, strlen( LEXER_MULTILINE_COMMENT_OPEN ) ) ) {
+            lexer_advance( lexer, strlen( LEXER_MULTILINE_COMMENT_OPEN ) );
+
+            for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
+                if ( c == '\n' ) {
+                    lexer->column = 0;
+                    lexer->line += 1;
+                    continue;
+                } else if ( c == '\r' ) {
+                    lexer->column = 0;
+                    continue;
+                } else if ( !strncmp( &lexer->source[lexer->cursor], LEXER_MULTILINE_COMMENT_CLOSE, strlen( LEXER_MULTILINE_COMMENT_CLOSE ) ) ) {
+                    lexer_advance( lexer, strlen( LEXER_MULTILINE_COMMENT_CLOSE ) - 1 );
+                    return true;
+                }
+            }
+
+            fprintf( stderr, "[FATAL]: unclosed multiline comment starting at %zu:%zu\n", line, column );
+            exit( EXIT_FAILURE );
+        }
+        return false;
+    }
+
     void lexer_parse( lexer_t lexer ) {
         for ( char c = lexer_current( lexer ); c != '\0'; c = lexer_next( lexer ) ) {
             if ( c == '\n' ) {
@@ -812,11 +838,11 @@ extern "C" {
                 continue;
             }
 
-            // TODO(hamid): multiline comments
             // TODO(hamid): preprocessor
 
             // TODO(hamid): look into a trie data structure for these in the future
-            bool matched = lexer_parse_string( lexer )
+            bool matched = lexer_parse_multiline_comment( lexer )
+                || lexer_parse_string( lexer )
                 || lexer_parse_character( lexer )
                 || lexer_parse_number( lexer )
                 || lexer_parse_operator( lexer )
